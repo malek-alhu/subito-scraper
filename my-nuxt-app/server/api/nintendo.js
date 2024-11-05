@@ -12,23 +12,66 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const response = await fetch(
-      `https://hades.subito.it/v1/search/items?q=${query.q || 'nintendo'}&t=s&sort=${query.sort || 'datedesc'}&lim=${query.lim || 30}&start=${query.start || 0}`,
-      {
-        headers: headers,
-        method: 'GET'
+    const itemsPerPage = 100
+    const totalItemsToFetch = parseInt(query.totalItems) || 100
+    const delay = 100 // 0.1 second delay
+    const concurrentLimit = 10
+
+    // Calculate how many requests we need
+    const totalRequests = Math.ceil(totalItemsToFetch / itemsPerPage)
+    const batches = []
+
+    // Create batches of requests
+    for (let i = 0; i < totalRequests; i += concurrentLimit) {
+      const batchRequests = []
+      const batchSize = Math.min(concurrentLimit, totalRequests - i)
+
+      for (let j = 0; j < batchSize; j++) {
+        const currentStart = (i + j) * itemsPerPage
+        const fetchPromise = fetch(
+          `https://hades.subito.it/v1/search/items?q=${query.q || 'nintendo'}&t=s&sort=${query.sort || 'datedesc'}&lim=${itemsPerPage}&start=${currentStart}`,
+          {
+            headers: headers,
+            method: 'GET'
+          }
+        ).then(response => {
+          if (!response.ok) throw new Error('Failed to fetch data')
+          return response.json()
+        })
+
+        batchRequests.push(fetchPromise)
       }
-    )
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch data')
+
+      // Execute batch and wait for delay
+      const batchResults = await Promise.all(batchRequests)
+      batches.push(...batchResults)
+
+      // Only delay if there are more batches to come
+      if (i + concurrentLimit < totalRequests) {
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
     }
-    
-    return await response.json()
+
+    // Process results
+    const allItems = batches.map((data, index) => {
+      if (index === 0) {
+        return {
+          count_all: data.count_all,
+          ads: data.ads
+        }
+      }
+      return {
+        ads: data.ads
+      }
+    }).filter(item => item.ads && item.ads.length > 0)
+
+    return allItems
+
   } catch (error) {
+    console.error('Error details:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Error fetching items',
+      statusMessage: 'Error fetching items: ' + error.message
     })
   }
 }) 

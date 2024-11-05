@@ -5,13 +5,6 @@
     <!-- Total Ads Counter -->
     <div v-if="totalAdsAvailable" class="total-ads-counter">
       <span>Total Available Ads: {{ totalAdsAvailable }}</span>
-      <button 
-        @click="downloadAllAds" 
-        class="download-button"
-        :disabled="loading || isDownloading"
-      >
-        {{ isDownloading ? 'Downloading...' : 'Download All Ads' }}
-      </button>
     </div>
 
     <!-- Current Endpoint Display -->
@@ -42,16 +35,6 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Items per Page:</label>
-        <input 
-          v-model.number="searchParams.limit" 
-          type="number" 
-          min="1" 
-          max="100"
-          placeholder="e.g., 30"
-        >
-      </div>
-      <div class="form-group">
         <label>Total Items to Fetch:</label>
         <input 
           v-model.number="searchParams.totalItems" 
@@ -60,7 +43,7 @@
           placeholder="e.g., 100"
         >
       </div>
-      <button @click="fetchAllItems" :disabled="loading" class="search-button">
+      <button @click="fetchAllItems" :disabled="loading || !isValidInput" class="search-button">
         {{ loading ? 'Fetching...' : 'Search' }}
       </button>
     </div>
@@ -118,39 +101,25 @@ const allItems = ref([])
 const isLoadingMore = ref(false)
 const progressPercentage = ref(0)
 const totalAdsAvailable = ref(null)
-const isDownloading = ref(false)
 
 const searchParams = ref({
   query: '',
-  limit: null,
   totalItems: null,
   start: 0,
   sort: ''
 })
 
-// Computed property for displaying current endpoint
-const currentEndpoint = computed(() => {
-  return `https://hades.subito.it/v1/search/items?q=${searchParams.value.query}&t=s&sort=${searchParams.value.sort}&lim=${searchParams.value.limit}&start=${searchParams.value.start}`
+// Validate input
+const isValidInput = computed(() => {
+  return searchParams.value.query && 
+         searchParams.value.totalItems &&
+         searchParams.value.totalItems > 0
 })
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
-
-async function fetchItems(start) {
-  const response = await useFetch('/api/nintendo', {
-    params: {
-      q: searchParams.value.query,
-      lim: searchParams.value.limit,
-      start: start,
-      sort: searchParams.value.sort
-    }
-  })
-  
-  if (response.error.value) {
-    throw new Error('Failed to fetch items')
-  }
-  
-  return response.data.value
-}
+// Computed property for displaying current endpoint
+const currentEndpoint = computed(() => {
+  return `https://hades.subito.it/v1/search/items?q=${searchParams.value.query}&t=s&sort=${searchParams.value.sort}&lim=100&start=${searchParams.value.start}`
+})
 
 async function fetchAllItems() {
   try {
@@ -159,66 +128,34 @@ async function fetchAllItems() {
     allItems.value = []
     isLoadingMore.value = true
     
-    let currentStart = 0
-    
-    // First fetch to get total count
-    const initialData = await fetchItems(0)
-    totalAdsAvailable.value = initialData.count_all
-    
-    while (allItems.value.length < searchParams.value.totalItems) {
-      const data = await fetchItems(currentStart)
-      
-      if (!data?.ads?.length) {
-        break
+    const { data: response } = await useFetch('/api/nintendo', {
+      params: {
+        q: searchParams.value.query,
+        sort: searchParams.value.sort,
+        totalItems: searchParams.value.totalItems
       }
-      
-      allItems.value.push(...data.ads)
-      currentStart += searchParams.value.limit
-      
-      progressPercentage.value = (allItems.value.length / searchParams.value.totalItems) * 100
-      
-      await sleep(1000)
+    })
+
+    if (!response.value || response.value.length === 0) {
+      throw new Error('No data received')
     }
-    
+
+    // Set total available from first response
+    totalAdsAvailable.value = response.value[0].count_all
+
+    // Combine all ads from responses
+    const combinedAds = response.value.reduce((acc, curr) => {
+      return acc.concat(curr.ads || [])
+    }, [])
+
+    allItems.value = combinedAds
+    progressPercentage.value = 100
+
   } catch (e) {
     error.value = 'Error fetching data: ' + e.message
   } finally {
     loading.value = false
     isLoadingMore.value = false
-  }
-}
-
-async function downloadAllAds() {
-  try {
-    isDownloading.value = true
-    const allAds = []
-    let currentStart = 0
-    
-    while (currentStart < totalAdsAvailable.value) {
-      const data = await fetchItems(currentStart)
-      if (!data?.ads?.length) break
-      
-      allAds.push(...data.ads)
-      currentStart += 30 // Using fixed limit for download
-      await sleep(1000)
-    }
-    
-    // Create and download JSON file
-    const jsonString = JSON.stringify(allAds, null, 2)
-    const blob = new Blob([jsonString], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `subito-${searchParams.value.query}-${new Date().toISOString()}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    
-  } catch (e) {
-    error.value = 'Error downloading ads: ' + e.message
-  } finally {
-    isDownloading.value = false
   }
 }
 
@@ -502,7 +439,7 @@ select {
   border-radius: 8px;
   margin-bottom: 1.5rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
 }
 
@@ -510,25 +447,5 @@ select {
   font-size: 1.125rem;
   font-weight: 500;
   color: #1f2937;
-}
-
-.download-button {
-  background-color: #10b981;
-  color: white;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-
-.download-button:hover {
-  background-color: #059669;
-}
-
-.download-button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
 }
 </style> 
