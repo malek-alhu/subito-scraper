@@ -74,6 +74,9 @@
           <div class="card-content">
             <h2 class="card-title">
               {{ ad.subject }}
+              <span v-if="getPrice(ad)" class="card-price">
+                {{ getPrice(ad) }}
+              </span>
             </h2>
             <p class="card-body">
               {{ ad.body }}
@@ -82,9 +85,6 @@
               <span class="date-icon">📅</span>
               {{ formatDate(ad.dates?.display) }}
             </div>
-          </div>
-          <div v-if="ad.price?.value" class="price-tag">
-            {{ ad.price.value }} {{ ad.price.currency }}
           </div>
         </div>
       </div>
@@ -180,6 +180,12 @@ const formatDate = (dateString) => {
   })
 }
 
+// Add this function to extract price from features
+const getPrice = (ad) => {
+  const priceFeature = ad.features?.find(feature => feature.uri === '/price')
+  return priceFeature?.values?.[0]?.value || null
+}
+
 // Initial fetch
 onMounted(fetchAllItems)
 </script>
@@ -256,10 +262,16 @@ onMounted(fetchAllItems)
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 0.75rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.card-price {
+  color: #4f46e5;
+  font-size: 1.1rem;
+  white-space: nowrap;
 }
 
 .card-body {
