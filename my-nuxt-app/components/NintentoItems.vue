@@ -1,35 +1,49 @@
 <template>
-  <div class="p-4">
-    <h1 class="text-2xl font-bold mb-4">Nintendo Items</h1>
-    <div v-if="loading">Loading...</div>
-    <div v-else-if="error">{{ error }}</div>
+  <div class="container">
+    <h1 class="title">Nintendo Items</h1>
+    
+    <div v-if="loading" class="loader-container">
+      <div class="loader"></div>
+    </div>
+    
+    <div v-else-if="error" class="error-message">
+      {{ error }}
+    </div>
+    
     <div v-else>
-      <div class="overflow-x-auto">
-        <table class="min-w-full border-collapse border border-gray-300">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border p-2">Type</th>
-              <th class="border p-2">Category</th>
-              <th class="border p-2">Title</th>
-              <th class="border p-2">Price</th>
-              <th class="border p-2">Location</th>
-              <th class="border p-2">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="ad in items?.ads" :key="ad.urn" class="hover:bg-gray-50">
-              <td class="border p-2">{{ ad.type?.value }}</td>
-              <td class="border p-2">{{ ad.category?.value }}</td>
-              <td class="border p-2">{{ ad.subject }}</td>
-              <td class="border p-2">{{ ad.price?.value }} {{ ad.price?.currency }}</td>
-              <td class="border p-2">{{ ad.geo?.city }}, {{ ad.geo?.region }}</td>
-              <td class="border p-2">{{ formatDate(ad.dates?.display) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="cards-grid">
+        <div v-for="ad in items?.ads" 
+             :key="ad.urn" 
+             class="card">
+          
+          <div class="card-content">
+            <!-- Title -->
+            <h2 class="card-title">
+              {{ ad.subject }}
+            </h2>
+            
+            <!-- Body -->
+            <p class="card-body">
+              {{ ad.body }}
+            </p>
+            
+            <!-- Date -->
+            <div class="date-container">
+              <span class="date-icon">📅</span>
+              {{ formatDate(ad.dates?.display) }}
+            </div>
+          </div>
+          
+          <!-- Price Tag -->
+          <div v-if="ad.price?.value" class="price-tag">
+            {{ ad.price.value }} {{ ad.price.currency }}
+          </div>
+        </div>
       </div>
-      <div class="mt-4">
-        <p>Total Items: {{ items?.count_all }}</p>
+      
+      <!-- Total Items Counter -->
+      <div class="total-counter">
+        <span>Total Items: {{ items?.count_all }}</span>
       </div>
     </div>
   </div>
@@ -42,10 +56,15 @@ const items = ref(null)
 
 const formatDate = (dateString) => {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString()
+  return new Date(dateString).toLocaleDateString('it-IT', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-// Testing endpoint accessibility through our proxy
 onMounted(async () => {
   try {
     const { data } = await useFetch('/api/nintendo')
@@ -60,16 +79,142 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-table {
-  width: 100%;
-  border-collapse: collapse;
+.container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-th, td {
-  text-align: left;
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #4f46e5;
 }
 
-tr:nth-child(even) {
-  background-color: #f9f9f9;
+.loader-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4f46e5;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  background-color: #fee2e2;
+  border-left: 4px solid #ef4444;
+  color: #991b1b;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+  overflow: hidden;
+}
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.card-content {
+  padding: 1.5rem;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-body {
+  color: #4b5563;
+  margin-bottom: 1rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card:hover .card-title,
+.card:hover .card-body {
+  -webkit-line-clamp: unset;
+}
+
+.date-container {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.date-icon {
+  margin-right: 0.5rem;
+}
+
+.price-tag {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: #4f46e5;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.total-counter {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.total-counter span {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style> 
