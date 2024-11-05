@@ -1,6 +1,38 @@
 <template>
   <div class="container">
     <h1 class="title">Nintendo Items</h1>
+
+    <!-- Search Form -->
+    <div class="search-form">
+      <div class="form-group">
+        <label>Search Query:</label>
+        <input 
+          v-model="searchParams.query" 
+          type="text" 
+          placeholder="e.g., nintendo switch"
+        >
+      </div>
+      <div class="form-group">
+        <label>Items per Page:</label>
+        <input 
+          v-model.number="searchParams.limit" 
+          type="number" 
+          min="1" 
+          max="100"
+        >
+      </div>
+      <div class="form-group">
+        <label>Total Items to Fetch:</label>
+        <input 
+          v-model.number="searchParams.totalItems" 
+          type="number" 
+          min="1"
+        >
+      </div>
+      <button @click="fetchAllItems" :disabled="loading" class="search-button">
+        {{ loading ? 'Fetching...' : 'Search' }}
+      </button>
+    </div>
     
     <div v-if="loading" class="loader-container">
       <div class="loader"></div>
@@ -11,48 +43,108 @@
     </div>
     
     <div v-else>
+      <!-- Progress Bar -->
+      <div v-if="isLoadingMore" class="progress-bar">
+        <div class="progress" :style="{ width: `${progressPercentage}%` }"></div>
+        <span class="progress-text">
+          Fetched {{ allItems.length }} of {{ searchParams.totalItems }} items
+        </span>
+      </div>
+
       <div class="cards-grid">
-        <div v-for="ad in items?.ads" 
+        <div v-for="ad in allItems" 
              :key="ad.urn" 
              class="card">
-          
           <div class="card-content">
-            <!-- Title -->
             <h2 class="card-title">
               {{ ad.subject }}
             </h2>
-            
-            <!-- Body -->
             <p class="card-body">
               {{ ad.body }}
             </p>
-            
-            <!-- Date -->
             <div class="date-container">
               <span class="date-icon">📅</span>
               {{ formatDate(ad.dates?.display) }}
             </div>
           </div>
-          
-          <!-- Price Tag -->
           <div v-if="ad.price?.value" class="price-tag">
             {{ ad.price.value }} {{ ad.price.currency }}
           </div>
         </div>
       </div>
       
-      <!-- Total Items Counter -->
       <div class="total-counter">
-        <span>Total Items: {{ items?.count_all }}</span>
+        <span>Showing {{ allItems.length }} Items</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-const loading = ref(true)
+const loading = ref(false)
 const error = ref(null)
-const items = ref(null)
+const allItems = ref([])
+const isLoadingMore = ref(false)
+const progressPercentage = ref(0)
+
+const searchParams = ref({
+  query: 'nintendo',
+  limit: 30,
+  totalItems: 100,
+  start: 0
+})
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+async function fetchItems(start) {
+  const response = await useFetch('/api/nintendo', {
+    params: {
+      q: searchParams.value.query,
+      lim: searchParams.value.limit,
+      start: start
+    }
+  })
+  
+  if (response.error.value) {
+    throw new Error('Failed to fetch items')
+  }
+  
+  return response.data.value
+}
+
+async function fetchAllItems() {
+  try {
+    loading.value = true
+    error.value = null
+    allItems.value = []
+    isLoadingMore.value = true
+    
+    let currentStart = 0
+    
+    while (allItems.value.length < searchParams.value.totalItems) {
+      const data = await fetchItems(currentStart)
+      
+      if (!data?.ads?.length) {
+        break // No more items available
+      }
+      
+      allItems.value.push(...data.ads)
+      currentStart += searchParams.value.limit
+      
+      // Calculate progress
+      progressPercentage.value = (allItems.value.length / searchParams.value.totalItems) * 100
+      
+      // Add a small delay to prevent rate limiting
+      await sleep(1000)
+    }
+    
+  } catch (e) {
+    error.value = 'Error fetching data: ' + e.message
+  } finally {
+    loading.value = false
+    isLoadingMore.value = false
+  }
+}
 
 const formatDate = (dateString) => {
   if (!dateString) return ''
@@ -65,17 +157,8 @@ const formatDate = (dateString) => {
   })
 }
 
-onMounted(async () => {
-  try {
-    const { data } = await useFetch('/api/nintendo')
-    items.value = data.value
-    console.log('Data structure:', data.value)
-  } catch (e) {
-    error.value = 'Error fetching data: ' + e.message
-  } finally {
-    loading.value = false
-  }
-})
+// Initial fetch
+onMounted(fetchAllItems)
 </script>
 
 <style scoped>
@@ -216,5 +299,81 @@ onMounted(async () => {
   .cards-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* New styles for search form */
+.search-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-group input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.search-button {
+  padding: 0.5rem 1rem;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  align-self: flex-end;
+}
+
+.search-button:hover {
+  background-color: #4338ca;
+}
+
+.search-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Progress bar styles */
+.progress-bar {
+  margin: 1rem 0;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+  height: 20px;
+  position: relative;
+}
+
+.progress {
+  height: 100%;
+  background-color: #4f46e5;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 </style> 

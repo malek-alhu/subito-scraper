@@ -1,4 +1,5 @@
 export default defineEventHandler(async (event) => {
+  const query = getQuery(event)
   const headers = {
     'accept': 'application/json, text/plain, */*',
     'accept-language': 'en-US,en;q=0.9',
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const response = await fetch(
-      'https://hades.subito.it/v1/search/items?q=nintendo&t=s&sort=datedesc&lim=30',
+      `https://hades.subito.it/v1/search/items?q=${query.q || 'nintendo'}&t=s&sort=datedesc&lim=${query.lim || 30}&start=${query.start || 0}`,
       {
         headers: headers,
         method: 'GET'
