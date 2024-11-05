@@ -2,6 +2,18 @@
   <div class="container">
     <h1 class="title">Subito API Scraper</h1>
     
+    <!-- Total Ads Counter -->
+    <div v-if="totalAdsAvailable" class="total-ads-counter">
+      <span>Total Available Ads: {{ totalAdsAvailable }}</span>
+      <button 
+        @click="downloadAllAds" 
+        class="download-button"
+        :disabled="loading || isDownloading"
+      >
+        {{ isDownloading ? 'Downloading...' : 'Download All Ads' }}
+      </button>
+    </div>
+
     <!-- Current Endpoint Display -->
     <div class="endpoint-display">
       <p>Current Endpoint:</p>
@@ -21,6 +33,7 @@
       <div class="form-group">
         <label>Sort By:</label>
         <select v-model="searchParams.sort">
+          <option value="">Select sorting</option>
           <option value="datedesc">Date (Newest First)</option>
           <option value="dateasc">Date (Oldest First)</option>
           <option value="pricedesc">Price (Highest First)</option>
@@ -35,6 +48,7 @@
           type="number" 
           min="1" 
           max="100"
+          placeholder="e.g., 30"
         >
       </div>
       <div class="form-group">
@@ -43,6 +57,7 @@
           v-model.number="searchParams.totalItems" 
           type="number" 
           min="1"
+          placeholder="e.g., 100"
         >
       </div>
       <button @click="fetchAllItems" :disabled="loading" class="search-button">
@@ -102,13 +117,15 @@ const error = ref(null)
 const allItems = ref([])
 const isLoadingMore = ref(false)
 const progressPercentage = ref(0)
+const totalAdsAvailable = ref(null)
+const isDownloading = ref(false)
 
 const searchParams = ref({
-  query: 'nintendo',
-  limit: 30,
-  totalItems: 100,
+  query: '',
+  limit: null,
+  totalItems: null,
   start: 0,
-  sort: 'datedesc'
+  sort: ''
 })
 
 // Computed property for displaying current endpoint
@@ -144,20 +161,22 @@ async function fetchAllItems() {
     
     let currentStart = 0
     
+    // First fetch to get total count
+    const initialData = await fetchItems(0)
+    totalAdsAvailable.value = initialData.count_all
+    
     while (allItems.value.length < searchParams.value.totalItems) {
       const data = await fetchItems(currentStart)
       
       if (!data?.ads?.length) {
-        break // No more items available
+        break
       }
       
       allItems.value.push(...data.ads)
       currentStart += searchParams.value.limit
       
-      // Calculate progress
       progressPercentage.value = (allItems.value.length / searchParams.value.totalItems) * 100
       
-      // Add a small delay to prevent rate limiting
       await sleep(1000)
     }
     
@@ -166,6 +185,40 @@ async function fetchAllItems() {
   } finally {
     loading.value = false
     isLoadingMore.value = false
+  }
+}
+
+async function downloadAllAds() {
+  try {
+    isDownloading.value = true
+    const allAds = []
+    let currentStart = 0
+    
+    while (currentStart < totalAdsAvailable.value) {
+      const data = await fetchItems(currentStart)
+      if (!data?.ads?.length) break
+      
+      allAds.push(...data.ads)
+      currentStart += 30 // Using fixed limit for download
+      await sleep(1000)
+    }
+    
+    // Create and download JSON file
+    const jsonString = JSON.stringify(allAds, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `subito-${searchParams.value.query}-${new Date().toISOString()}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+  } catch (e) {
+    error.value = 'Error downloading ads: ' + e.message
+  } finally {
+    isDownloading.value = false
   }
 }
 
@@ -187,7 +240,7 @@ const getPrice = (ad) => {
 }
 
 // Initial fetch
-onMounted(fetchAllItems)
+// onMounted(fetchAllItems)
 </script>
 
 <style scoped>
@@ -440,5 +493,42 @@ select {
   font-size: 1rem;
   background-color: white;
   width: 100%;
+}
+
+/* Add these new styles */
+.total-ads-counter {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.total-ads-counter span {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.download-button {
+  background-color: #10b981;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.download-button:hover {
+  background-color: #059669;
+}
+
+.download-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 </style> 
