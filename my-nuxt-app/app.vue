@@ -1,6 +1,8 @@
 <template>
   <div>
-    <NuxtRouteAnnouncer />
-    <NuxtWelcome />
+    <NintentoItems />
   </div>
 </template>
+
+<script setup>
+</script>
