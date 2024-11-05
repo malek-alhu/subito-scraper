@@ -1,6 +1,12 @@
 <template>
   <div class="container">
-    <h1 class="title">Nintendo Items</h1>
+    <h1 class="title">Subito API Scraper</h1>
+    
+    <!-- Current Endpoint Display -->
+    <div class="endpoint-display">
+      <p>Current Endpoint:</p>
+      <code>{{ currentEndpoint }}</code>
+    </div>
 
     <!-- Search Form -->
     <div class="search-form">
@@ -11,6 +17,16 @@
           type="text" 
           placeholder="e.g., nintendo switch"
         >
+      </div>
+      <div class="form-group">
+        <label>Sort By:</label>
+        <select v-model="searchParams.sort">
+          <option value="datedesc">Date (Newest First)</option>
+          <option value="dateasc">Date (Oldest First)</option>
+          <option value="pricedesc">Price (Highest First)</option>
+          <option value="priceasc">Price (Lowest First)</option>
+          <option value="relevance">Relevance</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Items per Page:</label>
@@ -91,7 +107,13 @@ const searchParams = ref({
   query: 'nintendo',
   limit: 30,
   totalItems: 100,
-  start: 0
+  start: 0,
+  sort: 'datedesc'
+})
+
+// Computed property for displaying current endpoint
+const currentEndpoint = computed(() => {
+  return `https://hades.subito.it/v1/search/items?q=${searchParams.value.query}&t=s&sort=${searchParams.value.sort}&lim=${searchParams.value.limit}&start=${searchParams.value.start}`
 })
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -101,7 +123,8 @@ async function fetchItems(start) {
     params: {
       q: searchParams.value.query,
       lim: searchParams.value.limit,
-      start: start
+      start: start,
+      sort: searchParams.value.sort
     }
   })
   
@@ -375,5 +398,35 @@ onMounted(fetchAllItems)
   color: #1f2937;
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+/* Add these new styles */
+.endpoint-display {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.endpoint-display p {
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.endpoint-display code {
+  font-family: monospace;
+  word-break: break-all;
+}
+
+select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: white;
+  width: 100%;
 }
 </style> 

@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const response = await fetch(
-      `https://hades.subito.it/v1/search/items?q=${query.q || 'nintendo'}&t=s&sort=datedesc&lim=${query.lim || 30}&start=${query.start || 0}`,
+      `https://hades.subito.it/v1/search/items?q=${query.q || 'nintendo'}&t=s&sort=${query.sort || 'datedesc'}&lim=${query.lim || 30}&start=${query.start || 0}`,
       {
         headers: headers,
         method: 'GET'
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'Error fetching Nintendo items',
+      statusMessage: 'Error fetching items',
     })
   }
 }) 
