@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "nuxt.config.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "buildCommand": "npx nuxt build",
+  "buildCommand": "npm install && npm install -g nuxt && npm run build",
   "outputDirectory": ".output"
 } 
