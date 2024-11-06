@@ -15,5 +15,4 @@ export const SCRAPER_CONFIG = {
   schedule: {
     interval: '0 */6 * * *' // Every 6 hours
   }
-  
 }
