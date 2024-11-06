@@ -1,6 +1,8 @@
 import { supabase } from '../utils/supabase'
 import { SCRAPER_CONFIG } from '../config/scraper'
 
+let isScrapingInProgress = false
+
 async function fetchPage(page) {
   const start = page * SCRAPER_CONFIG.pagination.itemsPerPage
   const params = new URLSearchParams({
@@ -95,7 +97,31 @@ export async function saveScrapingResult(data) {
 }
 
 export async function runScraper() {
+  // Prevent concurrent scraping
+  if (isScrapingInProgress) {
+    console.log('Scraping already in progress, skipping...')
+    return {
+      success: false,
+      error: 'Scraping already in progress'
+    }
+  }
+
   try {
+    isScrapingInProgress = true
+
+    // Check for existing in_progress sessions and clean them up
+    const { data: existingSessions, error: checkError } = await supabase
+      .from('scraping_sessions')
+      .select('id')
+      .eq('status', 'in_progress')
+
+    if (!checkError && existingSessions?.length > 0) {
+      await supabase
+        .from('scraping_sessions')
+        .update({ status: 'failed' })
+        .eq('status', 'in_progress')
+    }
+
     // Start a new scraping session
     const { data: session, error: sessionError } = await supabase
       .from('scraping_sessions')
@@ -156,6 +182,8 @@ export async function runScraper() {
       success: false,
       error: error.message
     }
+  } finally {
+    isScrapingInProgress = false
   }
 }
 

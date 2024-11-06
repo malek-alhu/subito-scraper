@@ -12,48 +12,85 @@ const scraperMetrics = {
   error: null
 }
 
+class ScraperScheduler {
+  constructor() {
+    this.isInitialized = false
+    this.cronJob = null
+  }
+
+  static instance = null
+
+  static getInstance() {
+    if (!ScraperScheduler.instance) {
+      ScraperScheduler.instance = new ScraperScheduler()
+    }
+    return ScraperScheduler.instance
+  }
+
+  async initialize() {
+    if (this.isInitialized) {
+      console.log('Scheduler already initialized')
+      return
+    }
+
+    // Run immediately on startup
+    await this.runScheduledScrape()
+
+    // Schedule future runs
+    this.cronJob = cron.schedule(SCRAPER_CONFIG.schedule.interval, async () => {
+      console.log('Starting scheduled scrape...')
+      await this.runScheduledScrape()
+    })
+
+    this.isInitialized = true
+    console.log('Scheduler initialized')
+  }
+
+  async runScheduledScrape() {
+    try {
+      scraperMetrics.status = 'running'
+      scraperMetrics.error = null
+      scraperMetrics.lastRun = new Date().toISOString()
+
+      const result = await runScraper()
+      
+      if (result.success) {
+        scraperMetrics.totalSessions++
+        scraperMetrics.totalItemsScraped += result.totalItems
+        scraperMetrics.lastSessionStats = {
+          sessionId: result.sessionId,
+          totalItems: result.totalItems,
+          totalPages: result.totalPages,
+          timestamp: new Date().toISOString()
+        }
+        scraperMetrics.status = 'idle'
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Scheduled scrape failed:', error)
+      scraperMetrics.status = 'error'
+      scraperMetrics.error = error.message
+    }
+  }
+
+  stop() {
+    if (this.cronJob) {
+      this.cronJob.stop()
+    }
+    this.isInitialized = false
+  }
+}
+
+// Export the metrics getter
 export function getScraperMetrics() {
   return scraperMetrics
 }
 
-async function runScheduledScrape() {
-  try {
-    scraperMetrics.status = 'running'
-    scraperMetrics.error = null
-    scraperMetrics.lastRun = new Date().toISOString()
-
-    const result = await runScraper()
-    
-    if (result.success) {
-      scraperMetrics.totalSessions++
-      scraperMetrics.totalItemsScraped += result.totalItems
-      scraperMetrics.lastSessionStats = {
-        sessionId: result.sessionId,
-        totalItems: result.totalItems,
-        totalPages: result.totalPages,
-        timestamp: new Date().toISOString()
-      }
-      scraperMetrics.status = 'idle'
-    } else {
-      throw new Error(result.error)
-    }
-  } catch (error) {
-    console.error('Scheduled scrape failed:', error)
-    scraperMetrics.status = 'error'
-    scraperMetrics.error = error.message
-  }
-}
-
-export function initializeScheduler() {
-  // Run immediately on startup
-  runScheduledScrape()
-
-  // Schedule future runs (every 6 hours)
-  cron.schedule(SCRAPER_CONFIG.schedule.interval, async () => {
-    console.log('Starting scheduled scrape...')
-    await runScheduledScrape()
-  })
+// Export a function to get the scheduler instance
+export function getScheduler() {
+  return ScraperScheduler.getInstance()
 }
 
 // Initialize when the module is imported
-initializeScheduler() 
+getScheduler().initialize()
