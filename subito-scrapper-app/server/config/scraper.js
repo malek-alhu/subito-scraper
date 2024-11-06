@@ -9,8 +9,8 @@ export const SCRAPER_CONFIG = {
     sort: 'datedesc'
   },
   pagination: {
-    itemsPerPage: 30,
-    maxConcurrentRequests: 3
+    itemsPerPage: 100,
+    maxConcurrentRequests: 5
   },
   schedule: {
     interval: '0 */6 * * *' // Every 6 hours
