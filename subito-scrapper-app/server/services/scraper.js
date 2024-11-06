@@ -3,6 +3,10 @@ import { SCRAPER_CONFIG } from '../config/scraper'
 
 let isScrapingInProgress = false
 
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 async function fetchPage(page) {
   const start = page * SCRAPER_CONFIG.pagination.itemsPerPage
   const params = new URLSearchParams({
@@ -20,9 +24,13 @@ async function fetchPage(page) {
 
 async function processBatch(pages, sessionId) {
   try {
-    const results = await Promise.all(pages.map(page => fetchPage(page)))
-    
-    for (const result of results) {
+    // Process pages sequentially with delay
+    for (const page of pages) {
+      // Add delay before each request
+      await sleep(SCRAPER_CONFIG.pagination.requestDelay)
+      
+      const result = await fetchPage(page)
+      
       const items = result.ads.map(ad => ({
         session_id: sessionId,
         item_id: ad.urn,
@@ -37,6 +45,9 @@ async function processBatch(pages, sessionId) {
         })
 
       if (error) throw error
+      
+      // Log progress
+      console.log(`Processed page ${page + 1}`)
     }
 
     return true
@@ -162,6 +173,8 @@ export async function runScraper() {
 
     for (const batch of batches) {
       await processBatch(batch, session.id)
+      // Add delay between batches
+      await sleep(SCRAPER_CONFIG.pagination.batchDelay)
     }
 
     // Update session status to completed

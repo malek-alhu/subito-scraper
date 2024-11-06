@@ -1,7 +1,7 @@
 export const SCRAPER_CONFIG = {
   baseUrl: 'https://hades.subito.it/v1/search/items',
   searchParams: {
-    q: 'nintendo',
+    q: 'moneta rara',
     t: 's',
     qso: 'false',
     shp: 'false',
@@ -10,7 +10,9 @@ export const SCRAPER_CONFIG = {
   },
   pagination: {
     itemsPerPage: 100,
-    maxConcurrentRequests: 5
+    maxConcurrentRequests: 10,
+    requestDelay: 100,
+    batchDelay: 1000
   },
   schedule: {
     interval: '0 */6 * * *' // Every 6 hours
