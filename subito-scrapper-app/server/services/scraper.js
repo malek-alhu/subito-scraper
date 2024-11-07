@@ -1,5 +1,5 @@
-import { supabase } from '../utils/supabase'
-import { SCRAPER_CONFIG } from '../config/scraper'
+import { supabase as db } from '../utils/supabase';
+import { SCRAPER_CONFIG } from '../config/scraper';
 
 let isScrapingInProgress = false
 
@@ -22,66 +22,89 @@ async function fetchPage(page) {
   return await response.json()
 }
 
-async function processBatch(pages, sessionId, totalPages) {
+async function processBatch(pages, sessionId, totalPages, scanStartedAt) {
   try {
-    // Process pages concurrently in groups of 10
     const pageGroups = [];
     for (let i = 0; i < pages.length; i += 10) {
       pageGroups.push(pages.slice(i, i + 10));
     }
 
     for (const group of pageGroups) {
-      // Process all pages in group concurrently
       await Promise.all(group.map(async (page) => {
         try {
-          const result = await fetchPage(page)
+          const result = await fetchPage(page);
           
           const items = result.ads.map(ad => ({
             session_id: sessionId,
             item_id: ad.urn,
-            data: ad
-          }))
+            data: ad,
+            last_checked_at: new Date().toISOString(),
+            active: true
+          }));
 
-          await supabase
+          await db
             .from('scraped_items')
             .upsert(items, { 
-              onConflict: 'item_id,session_id',
-              ignoreDuplicates: true 
-            })
+              onConflict: ['item_id', 'session_id'],
+              update: { last_checked_at: new Date().toISOString(), active: true }
+            });
 
-          console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`)
+          console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`);
           
-          // Update progress after each page
-          await supabase
+          await db
             .from('scraping_sessions')
             .update({ 
               processed_pages: page + 1,
               progress_percentage: Math.round(((page + 1) / totalPages) * 100),
               last_processed_at: new Date().toISOString()
             })
-            .eq('id', sessionId)
+            .eq('id', sessionId);
 
         } catch (error) {
-          console.error(`Error processing page ${page + 1}:`, error)
-          throw error
+          console.error(`Error processing page ${page + 1}:`, error);
+          throw error;
         }
-      }))
+      }));
 
-      // 100ms delay between groups
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    return true
+    return true;
   } catch (error) {
-    console.error('Error processing batch:', error)
-    return false
+    console.error('Error processing batch:', error);
+    return false;
+  }
+}
+
+async function markSoldItems(scanStartedAt) {
+  try {
+    const { data: staleItems, error } = await db
+      .from('scraped_items')
+      .select('item_id')
+      .lt('last_checked_at', scanStartedAt)
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    if (staleItems.length > 0) {
+      const { error: updateError } = await db
+        .from('scraped_items')
+        .update({ status: 'sold', active: false })
+        .in('item_id', staleItems.map(item => item.item_id));
+
+      if (updateError) throw updateError;
+
+      console.log(`Marked ${staleItems.length} items as sold.`);
+    }
+  } catch (error) {
+    console.error('Error marking sold items:', error);
   }
 }
 
 export async function saveScrapingResult(data) {
   try {
     // First save the main scraping result
-    const { data: scrapingResult, error: scrapingError } = await supabase
+    const { data: scrapingResult, error: scrapingError } = await db
       .from('scraping_sessions')
       .insert({
         search_query: SCRAPER_CONFIG.searchParams.q,
@@ -101,7 +124,7 @@ export async function saveScrapingResult(data) {
       data: ad
     }))
 
-    const { error: adsError } = await supabase
+    const { error: adsError } = await db
       .from('scraped_items')
       .upsert(adsToInsert, {
         onConflict: 'item_id,session_id',
@@ -111,7 +134,7 @@ export async function saveScrapingResult(data) {
     if (adsError) throw adsError
 
     // Update session status to completed
-    await supabase
+    await db
       .from('scraping_sessions')
       .update({ status: 'completed' })
       .eq('id', scrapingResult.id)
@@ -134,7 +157,7 @@ async function cleanupStaleSessions() {
     const now = new Date();
 
     // Fetch sessions that are in progress and have 0% progress
-    const { data: staleSessions, error: fetchError } = await supabase
+    const { data: staleSessions, error: fetchError } = await db
       .from('scraping_sessions')
       .select('*')
       .eq('status', 'in_progress')
@@ -149,7 +172,7 @@ async function cleanupStaleSessions() {
     });
 
     // Update the status of these sessions to 'failed'
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('scraping_sessions')
       .update({
         status: 'failed',
@@ -186,7 +209,7 @@ export async function runScraper() {
     console.log(`Found ${totalItems} items across ${totalPages} pages`)
 
     // Create session only after confirming we have data
-    const { data: newSession, error: sessionError } = await supabase
+    const { data: newSession, error: sessionError } = await db
       .from('scraping_sessions')
       .insert({
         search_query: SCRAPER_CONFIG.searchParams.q,
@@ -217,15 +240,17 @@ export async function runScraper() {
     }
 
     for (const batch of batches) {
-      const success = await processBatch(batch, session.id, totalPages)
+      const success = await processBatch(batch, session.id, totalPages, startTime.toISOString())
       if (!success) {
         throw new Error('Failed to process batch')
       }
     }
 
+    await markSoldItems(startTime.toISOString())
+
     // Mark session as completed
     const endTime = new Date()
-    await supabase
+    await db
       .from('scraping_sessions')
       .update({ 
         status: 'completed',
@@ -244,7 +269,7 @@ export async function runScraper() {
     
     if (session?.id) {
       const endTime = new Date()
-      await supabase
+      await db
         .from('scraping_sessions')
         .update({ 
           status: 'failed',

@@ -1,0 +1,298 @@
+{
+    "count_all": 46535,
+    "lines": 1,
+    "start": 31,
+    "filters": {
+      "lim": "",
+      "q": "nintendo",
+      "qso": "No",
+      "shp": "No",
+      "sort": "",
+      "start": "",
+      "t": "In vendita",
+      "urg": ""
+    },
+    "checknew": "https://hades.subito.it/v1/search/items/check?shp=false&urg=false&sort=datedesc&lim=1&start=30&q=nintendo&t=s&qso=false&last=id:ad:d54c9dfd-3564-4754-a83b-f84df9fdb650:list:577096643",
+    "ads": [
+      {
+        "urn": "id:ad:d54c9dfd-3564-4754-a83b-f84df9fdb650:list:577096643",
+        "type": {
+          "key": "s",
+          "value": "In vendita",
+          "weight": 0
+        },
+        "category": {
+          "key": "44",
+          "value": "Console e Videogiochi",
+          "friendly_name": "videogiochi",
+          "macrocategory_id": "9",
+          "weight": 24
+        },
+        "subject": "Mario Kart 8 Deluxe Nintendo Switch",
+        "body": "Vendo cartuccia gioco originale Mario kart 8 Deluxe per Nintendo Switch. Sprovvista di scatola.\nDisponibile a test e prove. Priorità allo scambio a mano. Spedisco tramite TuttoSubito, venditore con tanti feedback.",
+        "dates": {
+          "display": "2024-11-07 21:29:10",
+          "expiration": "2025-11-07 21:29:10",
+          "display_iso8601": "2024-11-07T21:29:10.71+0100",
+          "expiration_iso8601": "2025-11-07T21:29:10.71+0100"
+        },
+        "images": [
+          {
+            "uri": "imgid:2966833a-ec9c-4384-977f-80dbbddd51ee",
+            "base_url": "https://s.sbito.it/img/29/2966833a-ec9c-4384-977f-80dbbddd51ee",
+            "cdn_base_url": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee",
+            "scale": [
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=thumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=thumbs-auto",
+                "size": "small"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=smallthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=smallthumbs-auto",
+                "size": "slider"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=bigthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=bigthumbs-auto",
+                "size": "medium"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=gallerythumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=gallerythumbs-auto",
+                "size": "gallery"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=images-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=images-auto",
+                "size": "big"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=bigcardimages-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/29/2966833a-ec9c-4384-977f-80dbbddd51ee?rule=bigcardimages-auto",
+                "size": "bigcard"
+              }
+            ]
+          },
+          {
+            "uri": "imgid:03a80d9c-0dbd-41c1-8db0-d59479103fdf",
+            "base_url": "https://s.sbito.it/img/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf",
+            "cdn_base_url": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf",
+            "scale": [
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=thumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=thumbs-auto",
+                "size": "small"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=smallthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=smallthumbs-auto",
+                "size": "slider"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=bigthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=bigthumbs-auto",
+                "size": "medium"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=gallerythumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=gallerythumbs-auto",
+                "size": "gallery"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=images-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=images-auto",
+                "size": "big"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=bigcardimages-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/03/03a80d9c-0dbd-41c1-8db0-d59479103fdf?rule=bigcardimages-auto",
+                "size": "bigcard"
+              }
+            ]
+          },
+          {
+            "uri": "imgid:2e98a5fa-4696-43f9-b255-75bead61582e",
+            "base_url": "https://s.sbito.it/img/2e/2e98a5fa-4696-43f9-b255-75bead61582e",
+            "cdn_base_url": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e",
+            "scale": [
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=thumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=thumbs-auto",
+                "size": "small"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=smallthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=smallthumbs-auto",
+                "size": "slider"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=bigthumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=bigthumbs-auto",
+                "size": "medium"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=gallerythumbs-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=gallerythumbs-auto",
+                "size": "gallery"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=images-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=images-auto",
+                "size": "big"
+              },
+              {
+                "uri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=bigcardimages-auto",
+                "secureuri": "https://images.sbito.it/api/v1/sbt-ads-images-pro/images/2e/2e98a5fa-4696-43f9-b255-75bead61582e?rule=bigcardimages-auto",
+                "size": "bigcard"
+              }
+            ]
+          }
+        ],
+        "images_360": [],
+        "features": [
+          {
+            "type": "list",
+            "uri": "/shipping_carriers",
+            "label": "Corrieri per la spedizione",
+            "values": [
+              {
+                "key": "poste_italiane",
+                "value": "poste_italiane"
+              },
+              {
+                "key": "ups",
+                "value": "ups"
+              },
+              {
+                "key": "inpost",
+                "value": "inpost"
+              },
+              {
+                "key": "bartolini",
+                "value": "bartolini"
+              }
+            ]
+          },
+          {
+            "type": "number",
+            "uri": "/item_shipping_cost_tuttosubito",
+            "label": "Costo della spedizione",
+            "values": [
+              {
+                "key": "5,99",
+                "value": "5,99 €"
+              }
+            ]
+          },
+          {
+            "type": "list",
+            "uri": "/item_condition",
+            "label": "Condizione",
+            "values": [
+              {
+                "key": "40",
+                "value": "Buono - usato ma ben conservato",
+                "weight": 4,
+                "description": "Oggetto usato che potrebbe presentare segni di usura ma ben conservato."
+              }
+            ]
+          },
+          {
+            "type": "list",
+            "uri": "/item_shipping_type",
+            "label": "Metodo di spedizione",
+            "values": [
+              {
+                "key": "0",
+                "value": "Spedizione con TuttoSubito",
+                "weight": 1
+              }
+            ]
+          },
+          {
+            "type": "number",
+            "uri": "/price",
+            "label": "Prezzo",
+            "values": [
+              {
+                "key": "30",
+                "value": "30 €"
+              }
+            ]
+          },
+          {
+            "type": "list",
+            "uri": "/item_shipping_package_size",
+            "label": "Peso del pacco",
+            "values": [
+              {
+                "key": "10",
+                "value": "Piccolo - fino a 2kg",
+                "weight": 0
+              }
+            ]
+          },
+          {
+            "type": "bool",
+            "uri": "/item_shippable",
+            "label": "Disponibile alla spedizione",
+            "values": [
+              {
+                "key": "1",
+                "value": "Sì"
+              }
+            ]
+          }
+        ],
+        "advertiser": {
+          "user_id": "5546708",
+          "name": "",
+          "phone": "0",
+          "company": false,
+          "type": 0
+        },
+        "geo": {
+          "region": {
+            "key": "15",
+            "uri": "/region",
+            "value": "Campania",
+            "friendly_name": "campania",
+            "label": "Regione",
+            "level": 0,
+            "neighbors": "15,11,14,16,17"
+          },
+          "city": {
+            "key": "3",
+            "uri": "/city",
+            "value": "Caserta",
+            "label": "Provincia",
+            "friendly_name": "caserta",
+            "short_name": "CE",
+            "level": 1,
+            "istat": "061",
+            "region_id": "15"
+          },
+          "town": {
+            "key": "061005",
+            "uri": "/town",
+            "value": "Aversa",
+            "label": "Comune",
+            "level": 2,
+            "istat": "061005",
+            "region_id": "15",
+            "city_id": "3",
+            "has_zone": false,
+            "friendly_name": "aversa"
+          },
+          "uri": "/geo",
+          "label": "Comune",
+          "type": "geo"
+        },
+        "urls": {
+          "default": "https://www.subito.it/videogiochi/mario-kart-8-deluxe-nintendo-switch-caserta-577096643.htm",
+          "mobile": "https://www.subito.it/videogiochi/mario-kart-8-deluxe-nintendo-switch-caserta-577096643.htm"
+        }
+      }
+    ]
+  }

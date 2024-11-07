@@ -1,7 +1,7 @@
 export const SCRAPER_CONFIG = {
   baseUrl: 'https://hades.subito.it/v1/search/items',
   searchParams: {
-    q: 'nintendo switch',
+    q: 'nintendo',
     t: 's',
     qso: 'false',
     shp: 'false',
@@ -11,8 +11,8 @@ export const SCRAPER_CONFIG = {
   pagination: {
     itemsPerPage: 100,
     maxConcurrentRequests: 10,
-    requestDelay: 100,
-    batchDelay: 100
+    requestDelay: 1000,
+    batchDelay: 1000
   },
   schedule: {
     interval: '0 */6 * * *'
