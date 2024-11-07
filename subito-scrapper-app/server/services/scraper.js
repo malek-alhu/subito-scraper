@@ -145,8 +145,8 @@ export async function saveScrapingResult(data) {
     const { error: adsError } = await db
       .from('scraped_items')
       .upsert(adsToInsert, {
-        onConflict: 'item_id,session_id',
-        ignoreDuplicates: true
+        onConflict: 'item_id',
+        ignoreDuplicates: false
       })
 
     if (adsError) throw adsError
