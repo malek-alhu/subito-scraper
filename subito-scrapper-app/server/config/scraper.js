@@ -1,7 +1,7 @@
 export const SCRAPER_CONFIG = {
   baseUrl: 'https://hades.subito.it/v1/search/items',
   searchParams: {
-    q: 'moneta rara',
+    q: 'nintendo switch',
     t: 's',
     qso: 'false',
     shp: 'false',
