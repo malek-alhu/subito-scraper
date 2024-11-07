@@ -128,76 +128,62 @@ export async function saveScrapingResult(data) {
   }
 }
 
-async function cleanupStaleSessions() {
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-  
-  // Get all in-progress sessions
-  const { data: inProgressSessions } = await supabase
-    .from('scraping_sessions')
-    .select('id, created_at')
-    .eq('status', 'in_progress')
+async function cleanupOldSessions() {
+  try {
+    // Clean up any sessions with 0 items/pages
+    await supabase
+      .from('scraping_sessions')
+      .update({ 
+        status: 'failed',
+        error: 'Invalid session: No items found',
+        completed_at: new Date().toISOString()
+      })
+      .eq('status', 'in_progress')
+      .eq('total_items', 0)
 
-  if (inProgressSessions?.length > 0) {
-    console.log(`Found ${inProgressSessions.length} in-progress sessions to cleanup`)
-    
-    // Mark all old in-progress sessions as failed
-    const staleSessionIds = inProgressSessions
-      .filter(s => new Date(s.created_at) < new Date(thirtyMinutesAgo))
-      .map(s => s.id)
+    // Clean up stale sessions
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    await supabase
+      .from('scraping_sessions')
+      .update({ 
+        status: 'failed',
+        error: 'Session timed out',
+        completed_at: new Date().toISOString()
+      })
+      .eq('status', 'in_progress')
+      .lt('created_at', thirtyMinutesAgo)
 
-    if (staleSessionIds.length > 0) {
-      const { error } = await supabase
-        .from('scraping_sessions')
-        .update({ 
-          status: 'failed',
-          error: 'Session timed out or was interrupted',
-          completed_at: new Date().toISOString()
-        })
-        .in('id', staleSessionIds)
-
-      if (error) {
-        console.error('Error cleaning up stale sessions:', error)
-      } else {
-        console.log(`Cleaned up ${staleSessionIds.length} stale sessions`)
-      }
-    }
-
-    // Also cleanup any recent in-progress sessions
-    const recentSessionIds = inProgressSessions
-      .filter(s => new Date(s.created_at) >= new Date(thirtyMinutesAgo))
-      .map(s => s.id)
-
-    if (recentSessionIds.length > 0) {
-      const { error } = await supabase
-        .from('scraping_sessions')
-        .update({ 
-          status: 'failed',
-          error: 'Previous session was interrupted',
-          completed_at: new Date().toISOString()
-        })
-        .in('id', recentSessionIds)
-
-      if (error) {
-        console.error('Error cleaning up recent sessions:', error)
-      } else {
-        console.log(`Cleaned up ${recentSessionIds.length} recent sessions`)
-      }
-    }
+  } catch (error) {
+    console.error('Cleanup error:', error)
   }
 }
 
 export async function runScraper() {
+  await cleanupOldSessions()
+  
   let session = null
   const startTime = new Date()
   
   try {
-    // Create new session
+    // Get initial data BEFORE creating session
+    const initialData = await fetchPage(0)
+    const totalItems = initialData.count_all
+    const totalPages = Math.ceil(totalItems / SCRAPER_CONFIG.pagination.itemsPerPage)
+
+    // Validate we have data before creating session
+    if (!totalItems || totalItems === 0 || !totalPages || totalPages === 0) {
+      throw new Error('No items found to scrape')
+    }
+
+    console.log(`Found ${totalItems} items across ${totalPages} pages`)
+
+    // Create session only after confirming we have data
     const { data: newSession, error: sessionError } = await supabase
       .from('scraping_sessions')
       .insert({
         search_query: SCRAPER_CONFIG.searchParams.q,
-        total_items: 0,
-        total_pages: 0,
+        total_items: totalItems,
+        total_pages: totalPages,
         processed_pages: 0,
         progress_percentage: 0,
         status: 'in_progress',
@@ -211,22 +197,6 @@ export async function runScraper() {
     if (sessionError) throw sessionError
     session = newSession
     console.log(`Created new session: ${session.id}`)
-
-    // Get initial data
-    const initialData = await fetchPage(0)
-    const totalItems = initialData.count_all
-    const totalPages = Math.ceil(totalItems / SCRAPER_CONFIG.pagination.itemsPerPage)
-
-    // Update session with totals
-    await supabase
-      .from('scraping_sessions')
-      .update({
-        total_items: totalItems,
-        total_pages: totalPages
-      })
-      .eq('id', session.id)
-
-    console.log(`Found ${totalItems} items across ${totalPages} pages`)
 
     // Process pages in batches of 10
     const batches = []
@@ -262,7 +232,7 @@ export async function runScraper() {
     return { success: true, sessionId: session.id, totalItems, totalPages }
 
   } catch (error) {
-    console.error(`Session ${session?.id} failed:`, error)
+    console.error(`Scraping error:`, error)
     
     if (session?.id) {
       const endTime = new Date()
