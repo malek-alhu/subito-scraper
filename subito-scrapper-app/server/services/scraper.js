@@ -24,60 +24,56 @@ async function fetchPage(page) {
 
 async function processBatch(pages, sessionId, totalPages) {
   try {
-    const batchStartTime = new Date()
-    
-    // Process pages sequentially with delay
-    for (const page of pages) {
-      // Add delay before each request
-      await sleep(SCRAPER_CONFIG.pagination.requestDelay)
-      
-      const result = await fetchPage(page)
-      
-      const items = result.ads.map(ad => ({
-        session_id: sessionId,
-        item_id: ad.urn,
-        data: ad
+    // Process pages concurrently in groups of 10
+    const pageGroups = [];
+    for (let i = 0; i < pages.length; i += 10) {
+      pageGroups.push(pages.slice(i, i + 10));
+    }
+
+    for (const group of pageGroups) {
+      // Process all pages in group concurrently
+      await Promise.all(group.map(async (page) => {
+        try {
+          const result = await fetchPage(page)
+          
+          const items = result.ads.map(ad => ({
+            session_id: sessionId,
+            item_id: ad.urn,
+            data: ad
+          }))
+
+          await supabase
+            .from('scraped_items')
+            .upsert(items, { 
+              onConflict: 'item_id,session_id',
+              ignoreDuplicates: true 
+            })
+
+          console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`)
+          
+          // Update progress after each page
+          await supabase
+            .from('scraping_sessions')
+            .update({ 
+              processed_pages: page + 1,
+              progress_percentage: Math.round(((page + 1) / totalPages) * 100),
+              last_processed_at: new Date().toISOString()
+            })
+            .eq('id', sessionId)
+
+        } catch (error) {
+          console.error(`Error processing page ${page + 1}:`, error)
+          throw error
+        }
       }))
 
-      const { error } = await supabase
-        .from('scraped_items')
-        .upsert(items, { 
-          onConflict: 'item_id,session_id',
-          ignoreDuplicates: true 
-        })
-
-      if (error) throw error
-      
-      const currentTime = new Date()
-      // Update session progress with percentage and duration
-      await supabase
-        .from('scraping_sessions')
-        .update({ 
-          processed_pages: page + 1,
-          progress_percentage: Math.round(((page + 1) / totalPages) * 100),
-          last_processed_at: currentTime.toISOString(),
-          duration_ms: currentTime - batchStartTime,
-          status: page + 1 === totalPages ? 'completed' : 'in_progress'
-        })
-        .eq('id', sessionId)
-      
-      console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`)
+      // 100ms delay between groups
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
 
     return true
   } catch (error) {
     console.error('Error processing batch:', error)
-    // Update session as failed if error occurs
-    const endTime = new Date()
-    await supabase
-      .from('scraping_sessions')
-      .update({ 
-        status: 'failed',
-        error: error.message,
-        completed_at: endTime.toISOString(),
-        duration_ms: endTime - batchStartTime
-      })
-      .eq('id', sessionId)
     return false
   }
 }
@@ -191,11 +187,6 @@ async function cleanupStaleSessions() {
 }
 
 export async function runScraper() {
-  console.log('Starting new scraping process...')
-  
-  // First cleanup any existing sessions
-  await cleanupStaleSessions()
-  
   let session = null
   const startTime = new Date()
   
@@ -221,7 +212,7 @@ export async function runScraper() {
     session = newSession
     console.log(`Created new session: ${session.id}`)
 
-    // Get initial data to determine total pages
+    // Get initial data
     const initialData = await fetchPage(0)
     const totalItems = initialData.count_all
     const totalPages = Math.ceil(totalItems / SCRAPER_CONFIG.pagination.itemsPerPage)
@@ -235,13 +226,13 @@ export async function runScraper() {
       })
       .eq('id', session.id)
 
-    console.log(`Session ${session.id}: Found ${totalItems} items across ${totalPages} pages`)
+    console.log(`Found ${totalItems} items across ${totalPages} pages`)
 
-    // Process all pages in batches
+    // Process pages in batches of 10
     const batches = []
-    for (let i = 0; i < totalPages; i += SCRAPER_CONFIG.pagination.maxConcurrentRequests) {
+    for (let i = 0; i < totalPages; i += 10) {
       const pages = Array.from(
-        { length: Math.min(SCRAPER_CONFIG.pagination.maxConcurrentRequests, totalPages - i) },
+        { length: Math.min(10, totalPages - i) },
         (_, index) => i + index
       )
       batches.push(pages)
@@ -252,25 +243,23 @@ export async function runScraper() {
       if (!success) {
         throw new Error('Failed to process batch')
       }
-      await sleep(SCRAPER_CONFIG.pagination.batchDelay)
     }
 
-    // Final update with completion time and duration
+    // Mark session as completed
     const endTime = new Date()
-    const duration = endTime - startTime
     await supabase
       .from('scraping_sessions')
       .update({ 
         status: 'completed',
         completed_at: endTime.toISOString(),
-        duration_ms: duration,
+        duration_ms: endTime - startTime,
         processed_pages: totalPages,
         progress_percentage: 100
       })
       .eq('id', session.id)
 
     console.log(`Session ${session.id} completed successfully`)
-    return { success: true, sessionId: session.id, totalItems, totalPages, duration }
+    return { success: true, sessionId: session.id, totalItems, totalPages }
 
   } catch (error) {
     console.error(`Session ${session?.id} failed:`, error)

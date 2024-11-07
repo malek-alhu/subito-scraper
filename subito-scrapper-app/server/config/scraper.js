@@ -12,9 +12,9 @@ export const SCRAPER_CONFIG = {
     itemsPerPage: 100,
     maxConcurrentRequests: 10,
     requestDelay: 100,
-    batchDelay: 1000
+    batchDelay: 100
   },
   schedule: {
-    interval: '0 */6 * * *' // Every 6 hours
+    interval: '0 */6 * * *'
   }
 }
