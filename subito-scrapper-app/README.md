@@ -73,17 +73,3 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-
-## New Features
-
-### Detailed Metrics
-
-The application now includes detailed metrics for the scraping process, which are displayed on the metrics page. These metrics include:
-
-- **Total Sessions**: The total number of scraping sessions.
-- **Total Items**: The total number of items scraped.
-- **Active Items**: The number of items currently marked as active.
-- **Sold Items**: The number of items marked as sold.
-- **Estimated Storage Size**: An estimate of the storage size based on the number of items.
-
-These metrics provide insights into the performance and status of the scraping operations, helping users to monitor and optimize their scraping activities.

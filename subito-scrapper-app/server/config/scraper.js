@@ -1,7 +1,7 @@
 export const SCRAPER_CONFIG = {
   baseUrl: 'https://hades.subito.it/v1/search/items',
   searchParams: {
-    q: 'iphone',
+    q: 'moneta rara',
     t: 's',
     qso: 'false',
     shp: 'false',

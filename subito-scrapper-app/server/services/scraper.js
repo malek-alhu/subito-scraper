@@ -128,7 +128,59 @@ export async function saveScrapingResult(data) {
   }
 }
 
+async function cleanupOldSessions() {
+  try {
+    console.log('Starting cleanup of sessions...')
+
+    // Calculate 30 minutes ago timestamp
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+
+    // First, mark all stale in-progress sessions as failed (older than 30 minutes)
+    const { data: staleInProgressSessions, error: queryError } = await supabase
+      .from('scraping_sessions')
+      .select('id, created_at')
+      .eq('status', 'in_progress')
+      .lt('created_at', thirtyMinutesAgo)
+
+    if (queryError) throw queryError
+
+    if (staleInProgressSessions?.length > 0) {
+      console.log(`Found ${staleInProgressSessions.length} stale in-progress sessions to clean up`)
+      
+      const { error: updateError } = await supabase
+        .from('scraping_sessions')
+        .update({ 
+          status: 'failed',
+          error: 'Session timed out after 30 minutes',
+          completed_at: new Date().toISOString()
+        })
+        .eq('status', 'in_progress')
+        .lt('created_at', thirtyMinutesAgo)
+
+      if (updateError) throw updateError
+      console.log('Cleaned up stale in-progress sessions')
+    }
+
+    // Then clean up sessions with 0 items
+    const { error: zeroItemsError } = await supabase
+      .from('scraping_sessions')
+      .update({ 
+        status: 'failed',
+        error: 'Invalid session: No items found',
+        completed_at: new Date().toISOString()
+      })
+      .eq('total_items', 0)
+
+    if (zeroItemsError) throw zeroItemsError
+
+  } catch (error) {
+    console.error('Cleanup error:', error)
+  }
+}
+
 export async function runScraper() {
+  await cleanupOldSessions()
+  
   let session = null
   const startTime = new Date()
   
@@ -157,7 +209,6 @@ export async function runScraper() {
         status: 'in_progress',
         created_at: startTime.toISOString(),
         start_time: startTime.toISOString(),
-        scan_started_at: startTime.toISOString(), // Record scan start time
         duration_ms: 0
       })
       .select()
@@ -184,29 +235,7 @@ export async function runScraper() {
       }
     }
 
-    // Update seen items
-    await supabase
-      .from('scraped_items')
-      .update({ last_checked_at: new Date().toISOString() })
-      .in('item_id', initialData.ads.map(ad => ad.urn))
-
-    // Find and mark unseen items as sold
-    const { data: unseenItems, error: unseenError } = await supabase
-      .from('scraped_items')
-      .select('item_id, last_checked_at')
-      .is('last_checked_at', null)
-      .or(`last_checked_at.lt.${startTime.toISOString()}`)
-
-    if (unseenError) throw unseenError
-
-    if (unseenItems.length > 0) {
-      await supabase
-        .from('scraped_items')
-        .update({ status: 'sold' })
-        .in('item_id', unseenItems.map(item => item.item_id))
-    }
-
-    // Mark session as completed only if no errors occurred
+    // Mark session as completed
     const endTime = new Date()
     await supabase
       .from('scraping_sessions')
@@ -227,7 +256,6 @@ export async function runScraper() {
     
     if (session?.id) {
       const endTime = new Date()
-      console.log(`Updating session ${session.id} to failed due to error: ${error.message}`)
       await supabase
         .from('scraping_sessions')
         .update({ 
