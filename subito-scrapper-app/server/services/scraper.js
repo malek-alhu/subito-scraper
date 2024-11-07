@@ -34,20 +34,31 @@ async function processBatch(pages, sessionId, totalPages, scanStartedAt) {
         try {
           const result = await fetchPage(page);
           
-          const items = result.ads.map(ad => ({
-            session_id: sessionId,
-            item_id: ad.urn,
-            data: ad,
-            last_checked_at: new Date().toISOString(),
-            active: true
-          }));
+          const items = result.ads.map(ad => {
+            const transactionStatus = ad.features.find(feature => feature.uri === '/transaction_status');
+            const isSold = transactionStatus && transactionStatus.values.some(value => value.value === 'SOLD');
 
-          await db
-            .from('scraped_items')
-            .upsert(items, { 
-              onConflict: ['item_id', 'session_id'],
-              update: { last_checked_at: new Date().toISOString(), active: true }
-            });
+            return {
+              session_id: sessionId,
+              item_id: ad.urn,
+              data: ad,
+              last_checked_at: new Date().toISOString(),
+              status: isSold ? 'sold' : 'active'
+            };
+          });
+
+          for (const item of items) {
+            const { error } = await db
+              .from('scraped_items')
+              .upsert(item, { 
+                onConflict: ['item_id', 'session_id']
+              });
+
+            if (error) {
+              console.error(`Error upserting item ${item.item_id}:`, error);
+              throw error;
+            }
+          }
 
           console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`);
           
@@ -89,7 +100,7 @@ async function markSoldItems(scanStartedAt) {
     if (staleItems.length > 0) {
       const { error: updateError } = await db
         .from('scraped_items')
-        .update({ status: 'sold', active: false })
+        .update({ status: 'sold' })
         .in('item_id', staleItems.map(item => item.item_id));
 
       if (updateError) throw updateError;
@@ -117,12 +128,19 @@ export async function saveScrapingResult(data) {
 
     if (scrapingError) throw scrapingError
 
-    // Then save each ad
-    const adsToInsert = data.ads.map(ad => ({
-      session_id: scrapingResult.id,
-      item_id: ad.urn,
-      data: ad
-    }))
+    // Then save each ad with status
+    const adsToInsert = data.ads.map(ad => {
+      const transactionStatus = ad.features.find(feature => feature.uri === '/transaction_status');
+      const isSold = transactionStatus && transactionStatus.values.some(value => value.value === 'SOLD');
+      
+      return {
+        session_id: scrapingResult.id,
+        item_id: ad.urn,
+        data: ad,
+        status: isSold ? 'sold' : 'active',
+        last_checked_at: new Date().toISOString()
+      };
+    });
 
     const { error: adsError } = await db
       .from('scraped_items')
