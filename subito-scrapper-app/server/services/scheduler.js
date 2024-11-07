@@ -13,6 +13,54 @@ const scraperMetrics = {
   error: null
 }
 
+// Add function to update metrics from database
+async function updateMetricsFromDB() {
+  try {
+    // Get latest session
+    const { data: latestSession, error: sessionError } = await supabase
+      .from('scraping_sessions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (sessionError) throw sessionError
+
+    if (latestSession) {
+      scraperMetrics.lastRun = latestSession.created_at
+      scraperMetrics.lastSessionStats = {
+        sessionId: latestSession.id,
+        totalItems: latestSession.total_items,
+        totalPages: latestSession.total_pages,
+        timestamp: latestSession.created_at
+      }
+      scraperMetrics.status = latestSession.status
+      scraperMetrics.error = latestSession.error || null
+    }
+
+    // Get total items count
+    const { count: totalItems, error: itemsError } = await supabase
+      .from('scraped_items')
+      .select('*', { count: 'exact', head: true })
+
+    if (itemsError) throw itemsError
+
+    scraperMetrics.totalItemsScraped = totalItems || 0
+
+    // Get total sessions count
+    const { count: totalSessions, error: countError } = await supabase
+      .from('scraping_sessions')
+      .select('*', { count: 'exact', head: true })
+
+    if (countError) throw countError
+
+    scraperMetrics.totalSessions = totalSessions || 0
+
+  } catch (error) {
+    console.error('Error updating metrics from DB:', error)
+  }
+}
+
 class ScraperScheduler {
   constructor() {
     this.isInitialized = false
@@ -38,6 +86,9 @@ class ScraperScheduler {
       return
     }
 
+    // Update initial metrics
+    await updateMetricsFromDB()
+
     // Run immediately on startup
     await this.runScheduledScrape()
 
@@ -45,6 +96,11 @@ class ScraperScheduler {
     this.cronJob = cron.schedule(SCRAPER_CONFIG.schedule.interval, async () => {
       console.log('Starting scheduled scrape...')
       await this.runScheduledScrape()
+    })
+
+    // Schedule metrics updates every minute
+    cron.schedule('* * * * *', async () => {
+      await updateMetricsFromDB()
     })
 
     this.isInitialized = true
@@ -60,15 +116,8 @@ class ScraperScheduler {
       const result = await runScraper()
       
       if (result.success) {
-        scraperMetrics.totalSessions++
-        scraperMetrics.totalItemsScraped += result.totalItems
-        scraperMetrics.lastSessionStats = {
-          sessionId: result.sessionId,
-          totalItems: result.totalItems,
-          totalPages: result.totalPages,
-          timestamp: new Date().toISOString()
-        }
-        scraperMetrics.status = 'idle'
+        // Update metrics immediately after successful scrape
+        await updateMetricsFromDB()
       } else {
         throw new Error(result.error)
       }
@@ -76,6 +125,7 @@ class ScraperScheduler {
       console.error('Scheduled scrape failed:', error)
       scraperMetrics.status = 'error'
       scraperMetrics.error = error.message
+      await updateMetricsFromDB()
     }
   }
 
