@@ -7,6 +7,16 @@
       </button>
     </div>
 
+          <!-- Database Statistics -->
+          <div class="metric-section">
+        <h3>Database Statistics</h3>
+        <p>Total Sessions: {{ metrics.dbStats.totalSessions }}</p>
+        <p>Total Items: {{ metrics.dbStats.totalItems }}</p>
+        <p>Active Items: {{ metrics.dbStats.activeItems }}</p>
+        <p>Sold Items: {{ metrics.dbStats.soldItems }}</p>
+      <p>Estimated Storage Size: {{ metrics.dbStats.storageSize }} KB</p>
+    </div>
+
     <div v-if="pending">Loading detailed metrics...</div>
     <div v-else-if="error" class="error-card">{{ error }}</div>
     <div v-else class="metrics-container">

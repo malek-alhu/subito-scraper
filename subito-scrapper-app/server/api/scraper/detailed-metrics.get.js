@@ -41,10 +41,27 @@ export default defineEventHandler(async (event) => {
       schedule: SCRAPER_CONFIG.schedule.interval
     }
 
+    // Calculate active and sold item counts
+    const { count: activeCount, error: activeError } = await supabase
+      .from('scraped_items')
+      .select('id', { count: 'exact' })
+      .eq('status', 'active')
+
+    if (activeError) throw activeError
+
+    const { count: soldCount, error: soldError } = await supabase
+      .from('scraped_items')
+      .select('id', { count: 'exact' })
+      .eq('status', 'sold')
+
+    if (soldError) throw soldError
+
     return {
       dbStats: {
         totalSessions: recentSessions.length,
         totalItems,
+        activeItems: activeCount,
+        soldItems: soldCount,
         storageSize: totalItems * 1024 // Rough estimate: 1KB per item
       },
       recentSessions: recentSessions.map(session => ({
