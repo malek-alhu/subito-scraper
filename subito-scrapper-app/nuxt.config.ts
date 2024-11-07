@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   devtools: { enabled: true },
   nitro: {
-    preset: 'vercel',
+    preset: 'node-server',
   },
   runtimeConfig: {
     supabaseUrl: process.env.SUPABASE_URL,
