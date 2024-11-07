@@ -130,28 +130,48 @@ export async function saveScrapingResult(data) {
 
 async function cleanupOldSessions() {
   try {
-    // Clean up any sessions with 0 items/pages
-    await supabase
+    console.log('Starting cleanup of sessions...')
+
+    // Calculate 30 minutes ago timestamp
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+
+    // First, mark all stale in-progress sessions as failed (older than 30 minutes)
+    const { data: staleInProgressSessions, error: queryError } = await supabase
+      .from('scraping_sessions')
+      .select('id, created_at')
+      .eq('status', 'in_progress')
+      .lt('created_at', thirtyMinutesAgo)
+
+    if (queryError) throw queryError
+
+    if (staleInProgressSessions?.length > 0) {
+      console.log(`Found ${staleInProgressSessions.length} stale in-progress sessions to clean up`)
+      
+      const { error: updateError } = await supabase
+        .from('scraping_sessions')
+        .update({ 
+          status: 'failed',
+          error: 'Session timed out after 30 minutes',
+          completed_at: new Date().toISOString()
+        })
+        .eq('status', 'in_progress')
+        .lt('created_at', thirtyMinutesAgo)
+
+      if (updateError) throw updateError
+      console.log('Cleaned up stale in-progress sessions')
+    }
+
+    // Then clean up sessions with 0 items
+    const { error: zeroItemsError } = await supabase
       .from('scraping_sessions')
       .update({ 
         status: 'failed',
         error: 'Invalid session: No items found',
         completed_at: new Date().toISOString()
       })
-      .eq('status', 'in_progress')
       .eq('total_items', 0)
 
-    // Clean up stale sessions
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-    await supabase
-      .from('scraping_sessions')
-      .update({ 
-        status: 'failed',
-        error: 'Session timed out',
-        completed_at: new Date().toISOString()
-      })
-      .eq('status', 'in_progress')
-      .lt('created_at', thirtyMinutesAgo)
+    if (zeroItemsError) throw zeroItemsError
 
   } catch (error) {
     console.error('Cleanup error:', error)
