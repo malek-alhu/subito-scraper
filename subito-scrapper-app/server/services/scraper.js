@@ -22,8 +22,10 @@ async function fetchPage(page) {
   return await response.json()
 }
 
-async function processBatch(pages, sessionId) {
+async function processBatch(pages, sessionId, totalPages) {
   try {
+    const batchStartTime = new Date()
+    
     // Process pages sequentially with delay
     for (const page of pages) {
       // Add delay before each request
@@ -46,13 +48,36 @@ async function processBatch(pages, sessionId) {
 
       if (error) throw error
       
-      // Log progress
-      console.log(`Processed page ${page + 1}`)
+      const currentTime = new Date()
+      // Update session progress with percentage and duration
+      await supabase
+        .from('scraping_sessions')
+        .update({ 
+          processed_pages: page + 1,
+          progress_percentage: Math.round(((page + 1) / totalPages) * 100),
+          last_processed_at: currentTime.toISOString(),
+          duration_ms: currentTime - batchStartTime,
+          status: page + 1 === totalPages ? 'completed' : 'in_progress'
+        })
+        .eq('id', sessionId)
+      
+      console.log(`Processed page ${page + 1}/${totalPages}, Session ID: ${sessionId}`)
     }
 
     return true
   } catch (error) {
     console.error('Error processing batch:', error)
+    // Update session as failed if error occurs
+    const endTime = new Date()
+    await supabase
+      .from('scraping_sessions')
+      .update({ 
+        status: 'failed',
+        error: error.message,
+        completed_at: endTime.toISOString(),
+        duration_ms: endTime - batchStartTime
+      })
+      .eq('id', sessionId)
     return false
   }
 }
@@ -107,45 +132,94 @@ export async function saveScrapingResult(data) {
   }
 }
 
-export async function runScraper() {
-  // Prevent concurrent scraping
-  if (isScrapingInProgress) {
-    console.log('Scraping already in progress, skipping...')
-    return {
-      success: false,
-      error: 'Scraping already in progress'
+async function cleanupStaleSessions() {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  
+  // Get all in-progress sessions
+  const { data: inProgressSessions } = await supabase
+    .from('scraping_sessions')
+    .select('id, created_at')
+    .eq('status', 'in_progress')
+
+  if (inProgressSessions?.length > 0) {
+    console.log(`Found ${inProgressSessions.length} in-progress sessions to cleanup`)
+    
+    // Mark all old in-progress sessions as failed
+    const staleSessionIds = inProgressSessions
+      .filter(s => new Date(s.created_at) < new Date(thirtyMinutesAgo))
+      .map(s => s.id)
+
+    if (staleSessionIds.length > 0) {
+      const { error } = await supabase
+        .from('scraping_sessions')
+        .update({ 
+          status: 'failed',
+          error: 'Session timed out or was interrupted',
+          completed_at: new Date().toISOString()
+        })
+        .in('id', staleSessionIds)
+
+      if (error) {
+        console.error('Error cleaning up stale sessions:', error)
+      } else {
+        console.log(`Cleaned up ${staleSessionIds.length} stale sessions`)
+      }
+    }
+
+    // Also cleanup any recent in-progress sessions
+    const recentSessionIds = inProgressSessions
+      .filter(s => new Date(s.created_at) >= new Date(thirtyMinutesAgo))
+      .map(s => s.id)
+
+    if (recentSessionIds.length > 0) {
+      const { error } = await supabase
+        .from('scraping_sessions')
+        .update({ 
+          status: 'failed',
+          error: 'Previous session was interrupted',
+          completed_at: new Date().toISOString()
+        })
+        .in('id', recentSessionIds)
+
+      if (error) {
+        console.error('Error cleaning up recent sessions:', error)
+      } else {
+        console.log(`Cleaned up ${recentSessionIds.length} recent sessions`)
+      }
     }
   }
+}
 
+export async function runScraper() {
+  console.log('Starting new scraping process...')
+  
+  // First cleanup any existing sessions
+  await cleanupStaleSessions()
+  
+  let session = null
+  const startTime = new Date()
+  
   try {
-    isScrapingInProgress = true
-
-    // Check for existing in_progress sessions and clean them up
-    const { data: existingSessions, error: checkError } = await supabase
-      .from('scraping_sessions')
-      .select('id')
-      .eq('status', 'in_progress')
-
-    if (!checkError && existingSessions?.length > 0) {
-      await supabase
-        .from('scraping_sessions')
-        .update({ status: 'failed' })
-        .eq('status', 'in_progress')
-    }
-
-    // Start a new scraping session
-    const { data: session, error: sessionError } = await supabase
+    // Create new session
+    const { data: newSession, error: sessionError } = await supabase
       .from('scraping_sessions')
       .insert({
         search_query: SCRAPER_CONFIG.searchParams.q,
         total_items: 0,
         total_pages: 0,
-        status: 'in_progress'
+        processed_pages: 0,
+        progress_percentage: 0,
+        status: 'in_progress',
+        created_at: startTime.toISOString(),
+        start_time: startTime.toISOString(),
+        duration_ms: 0
       })
       .select()
       .single()
 
     if (sessionError) throw sessionError
+    session = newSession
+    console.log(`Created new session: ${session.id}`)
 
     // Get initial data to determine total pages
     const initialData = await fetchPage(0)
@@ -161,6 +235,8 @@ export async function runScraper() {
       })
       .eq('id', session.id)
 
+    console.log(`Session ${session.id}: Found ${totalItems} items across ${totalPages} pages`)
+
     // Process all pages in batches
     const batches = []
     for (let i = 0; i < totalPages; i += SCRAPER_CONFIG.pagination.maxConcurrentRequests) {
@@ -172,31 +248,47 @@ export async function runScraper() {
     }
 
     for (const batch of batches) {
-      await processBatch(batch, session.id)
-      // Add delay between batches
+      const success = await processBatch(batch, session.id, totalPages)
+      if (!success) {
+        throw new Error('Failed to process batch')
+      }
       await sleep(SCRAPER_CONFIG.pagination.batchDelay)
     }
 
-    // Update session status to completed
+    // Final update with completion time and duration
+    const endTime = new Date()
+    const duration = endTime - startTime
     await supabase
       .from('scraping_sessions')
-      .update({ status: 'completed' })
+      .update({ 
+        status: 'completed',
+        completed_at: endTime.toISOString(),
+        duration_ms: duration,
+        processed_pages: totalPages,
+        progress_percentage: 100
+      })
       .eq('id', session.id)
 
-    return {
-      success: true,
-      sessionId: session.id,
-      totalItems,
-      totalPages
-    }
+    console.log(`Session ${session.id} completed successfully`)
+    return { success: true, sessionId: session.id, totalItems, totalPages, duration }
+
   } catch (error) {
-    console.error('Scraping error:', error)
-    return {
-      success: false,
-      error: error.message
+    console.error(`Session ${session?.id} failed:`, error)
+    
+    if (session?.id) {
+      const endTime = new Date()
+      await supabase
+        .from('scraping_sessions')
+        .update({ 
+          status: 'failed',
+          completed_at: endTime.toISOString(),
+          duration_ms: endTime - startTime,
+          error: error.message
+        })
+        .eq('id', session.id)
     }
-  } finally {
-    isScrapingInProgress = false
+
+    return { success: false, error: error.message }
   }
 }
 

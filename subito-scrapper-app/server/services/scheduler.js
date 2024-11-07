@@ -1,6 +1,7 @@
 import cron from 'node-cron'
 import { runScraper } from './scraper'
 import { SCRAPER_CONFIG } from '../config/scraper'
+import { supabase } from '../utils/supabase'
 
 // Metrics state
 const scraperMetrics = {
@@ -16,6 +17,10 @@ class ScraperScheduler {
   constructor() {
     this.isInitialized = false
     this.cronJob = null
+    
+    // Handle graceful shutdown
+    process.on('SIGTERM', this.handleShutdown.bind(this))
+    process.on('SIGINT', this.handleShutdown.bind(this))
   }
 
   static instance = null
@@ -79,6 +84,23 @@ class ScraperScheduler {
       this.cronJob.stop()
     }
     this.isInitialized = false
+  }
+
+  async handleShutdown() {
+    console.log('Shutting down scheduler...')
+    if (this.cronJob) {
+      this.cronJob.stop()
+    }
+    
+    // Clean up any in-progress sessions
+    try {
+      await supabase
+        .from('scraping_sessions')
+        .update({ status: 'failed', error: 'Deployment restart' })
+        .eq('status', 'in_progress')
+    } catch (error) {
+      console.error('Error cleaning up sessions:', error)
+    }
   }
 }
 

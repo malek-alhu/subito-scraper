@@ -1,19 +1,10 @@
 <template>
   <div class="scraper-metrics">
-    <h2>Subito Coin Scraper Dashboard</h2>
+    <h2>Scraper Status Dashboard</h2>
     
     <div v-if="pending">Loading metrics...</div>
     <div v-else-if="error">Error loading metrics</div>
     <div v-else class="metrics-grid">
-      <!-- Current Search Card -->
-      <div class="metric-card">
-        <h3>Current Search</h3>
-        <div class="search-info">
-          <p><strong>Query:</strong> {{ SCRAPER_CONFIG.searchParams.q }}</p>
-          <p><strong>Items Per Page:</strong> {{ SCRAPER_CONFIG.pagination.itemsPerPage }}</p>
-        </div>
-      </div>
-
       <!-- Status Card -->
       <div class="metric-card">
         <h3>Current Status</h3>
@@ -23,51 +14,48 @@
         <p v-if="metrics?.error" class="error-message">
           {{ metrics.error }}
         </p>
-      </div>
-
-      <!-- Stats Card -->
-      <div class="metric-card">
-        <h3>Statistics</h3>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">Total Sessions</span>
-            <span class="stat-value">{{ metrics?.totalSessions || 0 }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Items Scraped</span>
-            <span class="stat-value">{{ metrics?.totalItemsScraped || 0 }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Last Run</span>
-            <span class="stat-value">{{ formatTimeAgo(metrics?.lastRun) }}</span>
-          </div>
+        <div class="search-info">
+          <p><strong>Search Query:</strong> {{ SCRAPER_CONFIG.searchParams.q }}</p>
+          <p><strong>Last Run:</strong> {{ formatTimeAgo(metrics?.lastRun) }}</p>
         </div>
       </div>
 
-      <!-- Last Session Card -->
+      <!-- Latest Run Stats -->
       <div class="metric-card">
-        <h3>Last Session</h3>
+        <h3>Latest Run Statistics</h3>
         <template v-if="metrics?.lastSessionStats">
-          <p>Session ID: {{ metrics.lastSessionStats.sessionId }}</p>
-          <p>Items Found: {{ metrics.lastSessionStats.totalItems }}</p>
-          <p>Pages: {{ metrics.lastSessionStats.totalPages }}</p>
-          <p>Time: {{ formatDate(metrics.lastSessionStats.timestamp) }}</p>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <span class="stat-label">Items Found</span>
+              <span class="stat-value">{{ metrics.lastSessionStats.totalItems }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Pages Processed</span>
+              <span class="stat-value">{{ metrics.lastSessionStats.totalPages }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Session ID</span>
+              <span class="stat-value">#{{ metrics.lastSessionStats.sessionId }}</span>
+            </div>
+          </div>
         </template>
         <p v-else>No session data available</p>
       </div>
 
-      <!-- Schedule Card -->
+      <!-- Next Run Info -->
       <div class="metric-card">
-        <h3>Schedule</h3>
-        <p>Next Run: {{ getNextRunTime() }}</p>
-        <div class="progress-bar">
-          <div 
-            class="progress" 
-            :style="{ width: calculateProgress() + '%' }"
-            :class="{ 'almost-due': calculateProgress() > 80 }"
-          ></div>
+        <h3>Next Scheduled Run</h3>
+        <div class="next-run-info">
+          <p class="time-left">{{ getNextRunTime() }}</p>
+          <div class="progress-bar">
+            <div 
+              class="progress" 
+              :style="{ width: calculateProgress() + '%' }"
+              :class="{ 'almost-due': calculateProgress() > 80 }"
+            ></div>
+          </div>
+          <p class="schedule-info">Runs every 6 hours</p>
         </div>
-        <p class="schedule-info">Runs every 6 hours</p>
       </div>
     </div>
 
@@ -243,5 +231,43 @@ p {
 
 .details-button:hover {
   background-color: #2563eb;
+}
+
+.next-run-info {
+  text-align: center;
+}
+
+.time-left {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 1rem;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e40af;
 }
 </style> 
