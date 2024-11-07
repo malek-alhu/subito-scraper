@@ -128,58 +128,46 @@ export async function saveScrapingResult(data) {
   }
 }
 
-async function cleanupOldSessions() {
+async function cleanupStaleSessions() {
   try {
-    console.log('Starting cleanup of sessions...')
+    const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+    const now = new Date();
 
-    // Calculate 30 minutes ago timestamp
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-
-    // First, mark all stale in-progress sessions as failed (older than 30 minutes)
-    const { data: staleInProgressSessions, error: queryError } = await supabase
+    // Fetch sessions that are in progress and have 0% progress
+    const { data: staleSessions, error: fetchError } = await supabase
       .from('scraping_sessions')
-      .select('id, created_at')
+      .select('*')
       .eq('status', 'in_progress')
-      .lt('created_at', thirtyMinutesAgo)
+      .eq('progress_percentage', 0);
 
-    if (queryError) throw queryError
+    if (fetchError) throw fetchError;
 
-    if (staleInProgressSessions?.length > 0) {
-      console.log(`Found ${staleInProgressSessions.length} stale in-progress sessions to clean up`)
-      
-      const { error: updateError } = await supabase
-        .from('scraping_sessions')
-        .update({ 
-          status: 'failed',
-          error: 'Session timed out after 30 minutes',
-          completed_at: new Date().toISOString()
-        })
-        .eq('status', 'in_progress')
-        .lt('created_at', thirtyMinutesAgo)
+    // Filter sessions that have been in progress for more than 15 minutes
+    const sessionsToFail = staleSessions.filter(session => {
+      const startTime = new Date(session.created_at);
+      return (now - startTime) > FIFTEEN_MINUTES_MS;
+    });
 
-      if (updateError) throw updateError
-      console.log('Cleaned up stale in-progress sessions')
-    }
-
-    // Then clean up sessions with 0 items
-    const { error: zeroItemsError } = await supabase
+    // Update the status of these sessions to 'failed'
+    const { error: updateError } = await supabase
       .from('scraping_sessions')
-      .update({ 
+      .update({
         status: 'failed',
-        error: 'Invalid session: No items found',
-        completed_at: new Date().toISOString()
+        completed_at: now.toISOString(),
+        duration_ms: 0 // or calculate based on start time if needed
       })
-      .eq('total_items', 0)
+      .in('id', sessionsToFail.map(session => session.id));
 
-    if (zeroItemsError) throw zeroItemsError
+    if (updateError) throw updateError;
 
+    console.log(`Marked ${sessionsToFail.length} stale sessions as failed.`);
   } catch (error) {
-    console.error('Cleanup error:', error)
+    console.error('Error during cleanup of stale sessions:', error);
   }
 }
 
 export async function runScraper() {
-  await cleanupOldSessions()
+  await cleanupStaleSessions()
   
   let session = null
   const startTime = new Date()

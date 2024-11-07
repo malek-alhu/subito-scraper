@@ -14,33 +14,35 @@
       <div class="metric-section">
         <h3>Recent Scraping Sessions</h3>
         <div class="table-container">
-          <table>
+          <table v-if="recentSessions.length > 0">
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Items</th>
+                <th>ID</th>
+                <th>Started At</th>
+                <th>Search Query</th>
+                <th>Total Items</th>
                 <th>Pages</th>
-                <th>Duration</th>
+                <th>Progress</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="session in sessionStatuses" :key="session.id">
-                <td>{{ formatDate(session.created_at) }}</td>
+              <tr v-for="session in recentSessions" :key="session.id">
+                <td>#{{ session.id }}</td>
+                <td>{{ formatDate(session.start_time) }}</td>
+                <td>{{ session.search_query }}</td>
                 <td>{{ session.total_items }}</td>
-                <td>{{ session.total_pages }}</td>
-                <td>{{ calculateDuration(session) }}</td>
+                <td>{{ session.processed_pages }}/{{ session.total_pages }}</td>
+                <td>{{ session.progress_percentage }}%</td>
                 <td>
-                  <span :class="['status-badge', session.displayStatus]">
-                    {{ session.displayStatus }}
-                    <span v-if="session.statusReason" class="status-reason">
-                      ({{ session.statusReason }})
-                    </span>
+                  <span :class="['status-badge', session.status]">
+                    {{ session.status }}
                   </span>
                 </td>
               </tr>
             </tbody>
           </table>
+          <div v-else>No sessions found</div>
         </div>
       </div>
 
@@ -227,6 +229,26 @@ const sessionStatuses = computed(() => {
     }
   }) || []
 })
+
+async function markInProgressAsFailed() {
+  try {
+    const response = await fetch('/api/scraper/mark-failed', {
+      method: 'POST'
+    })
+    const result = await response.json()
+    console.log(result.message)
+    // Optionally refresh the session data
+    fetchMetrics()
+  } catch (error) {
+    console.error('Error marking in-progress sessions as failed:', error)
+  }
+}
+
+async function fetchMetrics() {
+  // Re-fetch the metrics to update the UI
+  const { data: metrics } = await useFetch('/api/scraper/detailed-metrics')
+  metrics.value = metrics
+}
 </script>
 
 <style scoped>
@@ -298,28 +320,39 @@ const sessionStatuses = computed(() => {
 
 .table-container {
   overflow-x: auto;
-  margin-top: 1rem;
+  margin: 1rem 0;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 th, td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
 }
 
 th {
   background-color: #f8fafc;
   font-weight: 600;
+  color: #64748b;
+}
+
+td:first-child {
+  font-family: monospace;
+  color: #1e40af;
+  font-weight: 500;
 }
 
 .status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -329,14 +362,14 @@ th {
   color: #166534;
 }
 
+.status-badge.failed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
 .status-badge.in_progress {
   background-color: #dbeafe;
   color: #1e40af;
-}
-
-.status-badge.error {
-  background-color: #fee2e2;
-  color: #991b1b;
 }
 
 .error-card {
