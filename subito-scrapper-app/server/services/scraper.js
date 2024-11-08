@@ -89,6 +89,9 @@ async function processBatch(pages, sessionId, totalPages, scanStartedAt) {
 
 async function markSoldItems(scanStartedAt) {
   try {
+    const BATCH_SIZE = 50; // Process 50 items at a time
+    
+    // First, get all stale items
     const { data: staleItems, error } = await db
       .from('scraped_items')
       .select('item_id')
@@ -98,12 +101,28 @@ async function markSoldItems(scanStartedAt) {
     if (error) throw error;
 
     if (staleItems.length > 0) {
-      const { error: updateError } = await db
-        .from('scraped_items')
-        .update({ status: 'sold' })
-        .in('item_id', staleItems.map(item => item.item_id));
+      // Process in batches
+      for (let i = 0; i < staleItems.length; i += BATCH_SIZE) {
+        const batch = staleItems.slice(i, i + BATCH_SIZE);
+        
+        const { error: updateError } = await db
+          .from('scraped_items')
+          .update({ 
+            status: 'sold',
+            last_checked_at: new Date().toISOString()
+          })
+          .in('item_id', batch.map(item => item.item_id));
 
-      if (updateError) throw updateError;
+        if (updateError) {
+          console.error(`Error updating batch ${i / BATCH_SIZE + 1}:`, updateError);
+          continue; // Continue with next batch even if this one fails
+        }
+
+        // Add a small delay between batches
+        if (i + BATCH_SIZE < staleItems.length) {
+          await sleep(100); // 100ms delay between batches
+        }
+      }
 
       console.log(`Marked ${staleItems.length} items as sold.`);
     }
