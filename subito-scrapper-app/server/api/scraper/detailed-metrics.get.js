@@ -3,6 +3,33 @@ import { SCRAPER_CONFIG } from '../../config/scraper.js';
 
 export default defineEventHandler(async (event) => {
   try {
+    // Check if tables exist first
+    const tablesCheck = await query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name = 'scraping_sessions'
+    `);
+
+    if (tablesCheck.rows.length === 0) {
+      return {
+        error: 'Database not initialized',
+        message: 'Please initialize the database first by calling POST /api/db/init',
+        dbStats: { totalSessions: 0, totalItems: 0, storageSize: 0 },
+        recentSessions: [],
+        performanceStats: { avgItemsPerSession: 0, successRate: 0, avgDurationMs: 0, failureRate: 0 },
+        recentErrors: [],
+        endpointStats: {
+          url: SCRAPER_CONFIG.baseUrl,
+          searchQuery: SCRAPER_CONFIG.searchParams.q,
+          itemsPerPage: SCRAPER_CONFIG.pagination.itemsPerPage,
+          requestDelay: SCRAPER_CONFIG.pagination.requestDelay,
+          batchDelay: SCRAPER_CONFIG.pagination.batchDelay,
+          schedule: SCRAPER_CONFIG.schedule.interval
+        }
+      };
+    }
+
     // Get recent sessions
     const sessionsResult = await query(`
       SELECT *
