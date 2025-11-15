@@ -11,11 +11,9 @@ export default defineNuxtConfig({
     preset: 'node-server',
   },
   runtimeConfig: {
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_KEY,
+    databaseUrl: process.env.DATABASE_URL,
     public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseKey: process.env.SUPABASE_KEY
+      apiBase: process.env.API_BASE || '/api'
     }
   }
 })

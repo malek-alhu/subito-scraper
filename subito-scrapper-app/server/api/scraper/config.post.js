@@ -1,15 +1,15 @@
-import { updateScraperConfig } from '../../services/scraper'
+import { updateScraperConfig } from '../../services/enhanced-scraper.js';
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event)
-    const result = await updateScraperConfig(body)
-    return result
+    const body = await readBody(event);
+    const result = await updateScraperConfig(body);
+    return result;
   } catch (error) {
-    console.error('Config update error:', error)
+    console.error('Config update error:', error);
     return {
       success: false,
       message: error.message
-    }
+    };
   }
-}) 
+});
