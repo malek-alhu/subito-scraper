@@ -1,11 +1,6 @@
 import { runScraper } from '../../services/enhanced-scraper.js';
 import { query } from '../../utils/db.js';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { DATABASE_SCHEMA } from '../../database/schema.js';
 
 async function ensureDatabaseInitialized() {
   try {
@@ -26,11 +21,8 @@ async function ensureDatabaseInitialized() {
       console.log('Database not initialized. Creating schema...');
       console.log('Missing tables:', missingTables.join(', '));
 
-      // Read and execute schema
-      const schemaPath = join(__dirname, '../../database/schema.sql');
-      const schema = readFileSync(schemaPath, 'utf8');
-
-      await query(schema);
+      // Execute embedded schema
+      await query(DATABASE_SCHEMA);
 
       console.log('✅ Database schema created successfully');
       return { initialized: true, created: true };
