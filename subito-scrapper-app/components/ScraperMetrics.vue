@@ -59,23 +59,46 @@
       </div>
     </div>
 
-    <div class="view-details">
-      <button @click="navigateToDetails" class="details-button">
-        View Detailed Metrics
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+      <button
+        @click="triggerScraping"
+        class="action-button scrape-button"
+        :disabled="isScrapingNow || metrics?.status === 'running'"
+      >
+        <span v-if="isScrapingNow">🔄 Starting Scrape...</span>
+        <span v-else-if="metrics?.status === 'running'">⏳ Scraping in Progress...</span>
+        <span v-else>🚀 Start Scraping Now</span>
       </button>
+
+      <button @click="navigateToDetails" class="action-button details-button">
+        📊 View Detailed Metrics
+      </button>
+
+      <button @click="navigateToDeals" class="action-button deals-button">
+        💰 View Deals
+      </button>
+    </div>
+
+    <!-- Feedback Messages -->
+    <div v-if="scraperMessage" :class="['feedback-message', scraperMessage.type]">
+      {{ scraperMessage.text }}
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { SCRAPER_CONFIG } from '../server/config/scraper'
 
-const { data: metrics, pending, error } = useFetch('/api/scraper/metrics', {
+const { data: metrics, pending, error, refresh } = useFetch('/api/scraper/metrics', {
   refresh: true,
   refreshInterval: 30000,
 })
 
 const router = useRouter()
+const isScrapingNow = ref(false)
+const scraperMessage = ref(null)
 
 function formatDate(dateString) {
   if (!dateString) return 'Never'
@@ -124,8 +147,56 @@ function calculateProgress() {
   return Math.min(100, Math.max(0, progress))
 }
 
+async function triggerScraping() {
+  if (isScrapingNow.value || metrics.value?.status === 'running') {
+    return
+  }
+
+  isScrapingNow.value = true
+  scraperMessage.value = {
+    type: 'info',
+    text: '🔄 Starting scraper... This will take 2-5 minutes. Database will auto-initialize if needed.'
+  }
+
+  try {
+    const result = await $fetch('/api/scraper/run', {
+      method: 'POST'
+    })
+
+    if (result.success) {
+      scraperMessage.value = {
+        type: 'success',
+        text: `✅ Scraper started successfully! Session ID: ${result.sessionId}. Scraping ${result.totalItems} items across ${result.totalPages} pages.`
+      }
+      // Refresh metrics to show updated status
+      await refresh()
+    } else {
+      scraperMessage.value = {
+        type: 'error',
+        text: `❌ Failed to start scraper: ${result.message || result.error}`
+      }
+    }
+  } catch (error) {
+    scraperMessage.value = {
+      type: 'error',
+      text: `❌ Error: ${error.message || 'Failed to start scraper'}`
+    }
+  } finally {
+    isScrapingNow.value = false
+
+    // Clear message after 10 seconds
+    setTimeout(() => {
+      scraperMessage.value = null
+    }, 10000)
+  }
+}
+
 function navigateToDetails() {
   router.push('/metrics')
+}
+
+function navigateToDeals() {
+  router.push('/deals')
 }
 </script>
 
@@ -229,8 +300,101 @@ p {
   transition: background-color 0.2s;
 }
 
-.details-button:hover {
-  background-color: #2563eb;
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.action-button {
+  flex: 1;
+  min-width: 200px;
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scrape-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.scrape-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
+.scrape-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.details-button {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.details-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(79, 172, 254, 0.4);
+}
+
+.deals-button {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #333;
+}
+
+.deals-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(250, 112, 154, 0.4);
+}
+
+.feedback-message {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feedback-message.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.feedback-message.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.feedback-message.info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
 }
 
 .next-run-info {

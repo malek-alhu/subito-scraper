@@ -2,9 +2,24 @@
   <div class="detailed-metrics">
     <div class="header">
       <h2>Detailed Scraping Analysis</h2>
-      <button @click="navigateBack" class="back-button">
-        Back to Dashboard
-      </button>
+      <div class="header-buttons">
+        <button
+          @click="triggerScraping"
+          class="action-button scrape-button"
+          :disabled="isScrapingNow"
+        >
+          <span v-if="isScrapingNow">🔄 Starting...</span>
+          <span v-else>🚀 Start Scraping</span>
+        </button>
+        <button @click="navigateBack" class="back-button">
+          ← Back to Dashboard
+        </button>
+      </div>
+    </div>
+
+    <!-- Feedback Message -->
+    <div v-if="scraperMessage" :class="['feedback-message', scraperMessage.type]">
+      {{ scraperMessage.text }}
     </div>
 
     <div v-if="pending">Loading detailed metrics...</div>
@@ -114,8 +129,13 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+
 const router = useRouter()
-const { data: metrics, pending, error } = useFetch('/api/scraper/detailed-metrics')
+const { data: metrics, pending, error, refresh } = useFetch('/api/scraper/detailed-metrics')
+
+const isScrapingNow = ref(false)
+const scraperMessage = ref(null)
 
 const MAX_SESSION_DURATION = 30 * 60 * 1000 // 30 minutes in milliseconds
 
@@ -132,6 +152,50 @@ const performanceStats = computed(() => metrics.value?.performanceStats || {
   successRate: 0,
   totalRuntime: 0
 })
+
+async function triggerScraping() {
+  if (isScrapingNow.value) {
+    return
+  }
+
+  isScrapingNow.value = true
+  scraperMessage.value = {
+    type: 'info',
+    text: '🔄 Starting scraper... This will take 2-5 minutes. Database will auto-initialize if needed.'
+  }
+
+  try {
+    const result = await $fetch('/api/scraper/run', {
+      method: 'POST'
+    })
+
+    if (result.success) {
+      scraperMessage.value = {
+        type: 'success',
+        text: `✅ Scraper started successfully! Session ID: ${result.sessionId}. Scraping ${result.totalItems} items across ${result.totalPages} pages.`
+      }
+      // Refresh metrics to show updated status
+      await refresh()
+    } else {
+      scraperMessage.value = {
+        type: 'error',
+        text: `❌ Failed to start scraper: ${result.message || result.error}`
+      }
+    }
+  } catch (error) {
+    scraperMessage.value = {
+      type: 'error',
+      text: `❌ Error: ${error.message || 'Failed to start scraper'}`
+    }
+  } finally {
+    isScrapingNow.value = false
+
+    // Clear message after 10 seconds
+    setTimeout(() => {
+      scraperMessage.value = null
+    }, 10000)
+  }
+}
 
 function navigateBack() {
   router.push('/')
@@ -263,20 +327,95 @@ async function fetchMetrics() {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header h2 {
+  margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.scrape-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.scrape-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
+.scrape-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .back-button {
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.5rem;
   background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .back-button:hover {
   background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.feedback-message {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feedback-message.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.feedback-message.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.feedback-message.info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
 }
 
 .metrics-container {
